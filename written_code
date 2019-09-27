@@ -1,0 +1,104 @@
+# Convolutional Neural Network 
+# 4 Steps: Convolution, Max Pooling, Flattening, & Full Connection 
+
+# Building a simple image classifier 
+# images of cats and dogs and train the CNN to predict if the image is a picture of a cat or dog
+# once the model is built, just need to simply change the images of cats and dogs with whatever images I want to work with
+# i.e. brain images of whether the image is a tumor or not 
+
+# We have a subset of a dataset from Kaggle 
+# We have 10,000 images in total; 8000 (split in half) dogs and cats in the training set & 2000 (split in half) dogs and cats in the test set 
+
+
+# NOTE: there is no PART 1 data pre-processing; already done manually 
+
+# PART 1 - Building the CNN 
+
+# Importing the Keras libraries and packages 
+# Package to initlize the CNN, use Sequential (for a sequence of layers) or graph  -- CNN is a sequence of layers 
+from tensorflow.keras.models import Sequential
+# Package for adding the convolutional layers to deal with images 
+from tensorflow.keras.layers import Convolution2D
+# Package for pooling step -- for pooling layers 
+from tensorflow.keras.layers import MaxPooling2D
+# Package for converting the pooled feature maps into large feature vector that becomes the input of the fully connected layers 
+from tensorflow.keras.layers import Flatten 
+# Package to add the fully connected layers in a classic ANN  
+from tensorflow.keras.layers import Dense 
+
+# Initializing the CNN 
+# Creating an Object of the Sequential class & call the object classifier 
+classifier = Sequential()
+
+# Step 1 - Convolution 
+# Using tensorflow backend, so put dimensions 64x64 first, then put 3 for colors RBG if colored images 
+# Use rectifier activation function to deal with non-linearity 
+classifier.add(Convolution2D(32, 3, 3, input_shape=(64,64,3), activation = 'relu'))
+
+# Step 2 - Max Pooling 
+classifier.add(MaxPooling2D(pool_size = (2, 2)))
+
+# Additional Step - Adding Second Convolutional layer + max pooling to the layer
+# Do not need to add input_shape because pooled feature maps already created in previous step; only include if image input not included before
+classifier.add(Convolution2D(32, 3, 3, activation = 'relu'))
+classifier.add(MaxPooling2D(pool_size = (2, 2)))
+
+# Step 3 - Flattening 
+classifier.add(Flatten())
+
+# Step 4 - Full Connection  
+# choice of units or output_dim is from experimentation; number around 100 is good, good practice to pick one that's a power of 2 
+classifier.add(Dense(units = 128, activation = 'relu'))
+# Output layer (change units or output_dim to 1 output and activation function to sigmoid)
+classifier.add(Dense(units = 1, activation = 'sigmoid'))
+
+# Compiling the CNN 
+classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+
+
+# PART 2 - Fitting the CNN to the images 
+# Using a process called Image Augmentation to reduce overfitting (minimize the chance of getting great accuracy score on training set and poor accruacy score on test set)
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+train_datagen = ImageDataGenerator(
+        rescale=1./255,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True)
+
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+training_set = train_datagen.flow_from_directory('dataset/training_set',
+                                                 target_size=(64, 64),
+                                                 batch_size=32,
+                                                 class_mode='binary')
+
+test_set = test_datagen.flow_from_directory('dataset/test_set',
+                                            target_size=(64, 64),
+                                            batch_size=32,
+                                            class_mode='binary')
+
+classifier.fit_generator(training_set,
+                         steps_per_epoch=8000,
+                         epochs=25,
+                         validation_data=test_set,
+                         validation_steps=2000)
+
+# PART 3 - Making new predictions 
+# import numpy to use a function by it to preprocess the image so that it'll be accepted by the predict function
+# import an image module from the preprocessing module of keras
+import numpy as np
+from tensorflow.keras.preprocessing import image 
+# load arguments: path to image and target size of image
+test_image = image.load_img('dataset/single_prediction/cat_or_dog_2.jpg', target_size=(64, 64))
+# make test image from 2-D of 64x64 to 3-D of 64x64x3
+test_image = image.img_to_array(test_image)
+# add another new dimension to give what the predict function expects to correspond to the batch
+test_image = np.expand_dims(test_image, axis = 0)
+result = classifier.predict(test_image)
+# Use an attribute called class indices to teel us exactly which image is a cat or dog
+training_set.class_indices
+if result [0][0] == 1:
+    prediction = 'dog'
+else:
+    prediction = 'cat'
